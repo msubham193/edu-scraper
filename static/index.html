@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EduScraper — Education Institute Contact Finder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #080d18;
+      --surface:   #0f1724;
+      --surface2:  #161f30;
+      --surface3:  #1c2840;
+      --border:    rgba(99,179,237,0.10);
+      --border2:   rgba(99,179,237,0.18);
+      --primary:   #3b82f6;
+      --primary-d: #1d4ed8;
+      --accent:    #06b6d4;
+      --success:   #10b981;
+      --warning:   #f59e0b;
+      --danger:    #ef4444;
+      --purple:    #8b5cf6;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --radius:    14px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: -1;
+      background:
+        radial-gradient(ellipse 70% 55% at 15% 5%,  rgba(59,130,246,0.07) 0%, transparent 55%),
+        radial-gradient(ellipse 55% 45% at 85% 85%, rgba(6,182,212,0.05)  0%, transparent 50%),
+        radial-gradient(ellipse 40% 40% at 70% 20%, rgba(139,92,246,0.04) 0%, transparent 45%),
+        var(--bg);
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────────────── */
+    header {
+      padding: 20px 40px;
+      display: flex; align-items: center; gap: 14px;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+      background: rgba(8,13,24,0.88);
+      position: sticky; top: 0; z-index: 200;
+    }
+
+    .logo {
+      width: 42px; height: 42px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 18px rgba(59,130,246,0.38);
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 1.35rem; font-weight: 800;
+      background: linear-gradient(135deg, #f1f5f9, var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    header p { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── LAYOUT ──────────────────────────────────────────────────────── */
+    .app-wrap {
+      display: flex;
+      min-height: calc(100vh - 83px);
+    }
+
+    /* ── SIDEBAR FILTERS ─────────────────────────────────────────────── */
+    .sidebar {
+      width: 290px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      padding: 28px 24px;
+      overflow-y: auto;
+      position: sticky;
+      top: 83px;
+      height: calc(100vh - 83px);
+    }
+
+    .sidebar-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 18px;
+    }
+
+    .filter-section { margin-bottom: 28px; }
+
+    .filter-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 7px;
+    }
+
+    /* Institute type grid */
+    .type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .type-btn {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.18s;
+    }
+
+    .type-btn:hover {
+      border-color: var(--primary);
+      background: rgba(59,130,246,0.08);
+    }
+
+    .type-btn.active {
+      border-color: var(--primary);
+      background: rgba(59,130,246,0.15);
+      box-shadow: inset 0 0 0 1px rgba(59,130,246,0.3);
+    }
+
+    .type-btn .t-icon { font-size: 1.2rem; display: block; margin-bottom: 3px; }
+
+    .type-btn .t-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .type-btn.active .t-label { color: #93c5fd; }
+
+    /* Sub-type coaching pills */
+    .subtype-wrap {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    .subtype-wrap.visible { display: flex; }
+
+    .subtype-chip {
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--muted);
+    }
+
+    .subtype-chip:hover { border-color: var(--purple); color: #c4b5fd; }
+
+    .subtype-chip.active {
+      border-color: var(--purple);
+      background: rgba(139,92,246,0.12);
+      color: #c4b5fd;
+    }
+
+    /* Input fields */
+    .filter-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      margin-bottom: 8px;
+    }
+
+    .filter-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    }
+
+    .filter-input::placeholder { color: var(--muted); }
+
+    select.filter-input {
+      cursor: pointer;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    select.filter-input option {
+      background: #1a2236;
+      color: #e2e8f0;
+    }
+
+    /* Query preview */
+    .query-preview {
+      background: rgba(59,130,246,0.06);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.78rem;
+      color: #93c5fd;
+      font-weight: 500;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .query-preview-label {
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 5px;
+    }
+
+    .btn-clear-filters {
+      width: 100%;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 9px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.15s;
+      margin-top: 8px;
+    }
+
+    .btn-clear-filters:hover {
+      border-color: var(--danger);
+      color: #fca5a5;
+    }
+
+    /* ── MAIN CONTENT ─────────────────────────────────────────────── */
+    .main-content {
+      flex: 1;
+      padding: 32px 36px;
+      min-width: 0;
+    }
+
+    /* Search bar */
+    .search-bar-wrap {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .search-input-wrap { position: relative; flex: 1; }
+
+    .search-icon {
+      position: absolute; left: 16px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px; pointer-events: none; color: var(--muted);
+    }
+
+    #query-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 13px 16px 13px 44px;
+      font-size: 0.95rem; font-family: 'Inter', sans-serif;
+      color: var(--text); outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    #query-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.13);
+    }
+
+    #query-input::placeholder { color: var(--muted); }
+
+    .btn-scrape {
+      background: linear-gradient(135deg, var(--primary), var(--primary-d));
+      color: #fff; border: none; border-radius: 12px;
+      padding: 13px 26px; font-size: 0.93rem; font-weight: 600;
+      font-family: 'Inter', sans-serif; cursor: pointer;
+      display: flex; align-items: center; gap: 8px; white-space: nowrap;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(59,130,246,0.32);
+    }
+
+    .btn-scrape:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 7px 20px rgba(59,130,246,0.48);
+    }
+
+    .btn-scrape:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Suggestions */
+    .quick-sugg {
+      display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 28px;
+      align-items: center;
+    }
+
+    .sugg-label { font-size: 0.75rem; color: var(--muted); font-weight: 500; }
+
+    .pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.76rem; padding: 5px 12px;
+      border-radius: 100px; cursor: pointer;
+      transition: all 0.15s; font-weight: 500;
+    }
+
+    .pill:hover { border-color: var(--primary); color: var(--primary); background: rgba(59,130,246,0.08); }
+
+    /* ── PROGRESS ─────────────────────────────────────────────────── */
+    #progress-panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 26px;
+      margin-bottom: 28px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .prog-top {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+    }
+
+    .prog-title { font-size: 0.9rem; font-weight: 600; }
+
+    .phase-badge {
+      font-size: 0.7rem; font-weight: 700; padding: 4px 12px;
+      border-radius: 100px; background: rgba(59,130,246,0.13);
+      color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em;
+    }
+
+    .prog-bar-bg {
+      background: var(--surface2); border-radius: 100px; height: 7px; overflow: hidden; margin-bottom: 10px;
+    }
+
+    .prog-bar {
+      height: 100%; border-radius: 100px; width: 0%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      transition: width 0.4s ease;
+    }
+
+    .prog-meta {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; color: var(--muted);
+    }
+
+    #status-msg {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 0.82rem; color: var(--accent); margin-top: 10px;
+    }
+
+    .spinner {
+      width: 13px; height: 13px;
+      border: 2px solid rgba(6,182,212,0.2); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.75s linear infinite; flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── RESULTS ───────────────────────────────────────────────────── */
+    #results-panel { display: none; animation: fadeIn 0.3s ease; }
+
+    .results-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px; flex-wrap: wrap; gap: 12px;
+    }
+
+    .results-title { font-size: 1.05rem; font-weight: 700; }
+    .results-count { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+    .btn-download {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, var(--success), #059669);
+      color: #fff; border: none; border-radius: 10px;
+      padding: 10px 20px; font-size: 0.88rem; font-weight: 600;
+      font-family: 'Inter', sans-serif; cursor: pointer;
+      text-decoration: none; transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(16,185,129,0.28);
+    }
+
+    .btn-download:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(16,185,129,0.42); }
+    .btn-download:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-bottom: 22px;
+    }
+
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px; text-align: center;
+    }
+
+    .stat-num {
+      font-size: 1.9rem; font-weight: 800; line-height: 1; margin-bottom: 4px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    .stat-label { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+
+    /* Table */
+    .table-wrap {
+      border-radius: var(--radius); border: 1px solid var(--border);
+      overflow: hidden; overflow-x: auto;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.845rem; }
+
+    thead th {
+      background: var(--surface2); color: var(--muted);
+      font-size: 0.69rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; padding: 12px 14px; text-align: left; white-space: nowrap;
+    }
+
+    tbody tr {
+      border-top: 1px solid var(--border); transition: background 0.13s;
+      animation: rowIn 0.3s ease both;
+    }
+
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateX(-6px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    tbody tr:hover { background: rgba(59,130,246,0.04); }
+
+    td { padding: 12px 14px; vertical-align: top; }
+
+    .td-num { color: var(--muted); font-size: 0.75rem; font-weight: 700; width: 36px; }
+    .td-name { font-weight: 600; color: #f1f5f9; min-width: 160px; max-width: 200px; }
+
+    .type-tag {
+      display: inline-block; font-size: 0.65rem; font-weight: 700;
+      padding: 2px 7px; border-radius: 5px; margin-top: 4px; text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .td-url a {
+      color: var(--primary); text-decoration: none; font-size: 0.78rem;
+      word-break: break-all;
+    }
+
+    .td-url a:hover { text-decoration: underline; }
+
+    .contact-list { display: flex; flex-direction: column; gap: 3px; }
+
+    .c-item { font-size: 0.78rem; display: flex; align-items: center; gap: 4px; }
+    .c-item.email { color: #60a5fa; }
+    .c-item.phone { color: #34d399; }
+    .tag-none { color: var(--muted); font-size: 0.75rem; font-style: italic; }
+
+    /* Error */
+    #error-banner {
+      display: none;
+      background: rgba(239,68,68,0.09); border: 1px solid rgba(239,68,68,0.28);
+      color: #fca5a5; padding: 12px 18px; border-radius: 11px;
+      margin-bottom: 22px; font-size: 0.87rem; animation: fadeIn 0.3s ease;
+    }
+
+    /* Empty */
+    .empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+    /* ── Responsive ────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .app-wrap { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+      .stats-grid { grid-template-columns: repeat(2,1fr); }
+    }
+
+    @media (max-width: 600px) {
+      .main-content { padding: 20px 16px; }
+      header { padding: 16px 20px; }
+      .search-bar-wrap { flex-direction: column; }
+      .btn-scrape { justify-content: center; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">&#127979;</div>
+  <div>
+    <h1>EduScraper</h1>
+    <p>Schools &bull; Colleges &bull; Universities &bull; Coaching Institutes</p>
+  </div>
+</header>
+
+<div class="app-wrap">
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SIDEBAR FILTERS
+  ════════════════════════════════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-title">&#127757; Search Filters</div>
+
+    <!-- TYPE FILTER -->
+    <div class="filter-section">
+      <div class="filter-label">&#127979; Institute Type</div>
+      <div class="type-grid">
+        <div class="type-btn active" data-type="" onclick="selectType(this)">
+          <span class="t-icon">&#127758;</span>
+          <span class="t-label">All Types</span>
+        </div>
+        <div class="type-btn" data-type="schools" onclick="selectType(this)">
+          <span class="t-icon">&#127979;</span>
+          <span class="t-label">Schools</span>
+        </div>
+        <div class="type-btn" data-type="colleges" onclick="selectType(this)">
+          <span class="t-icon">&#127979;</span>
+          <span class="t-label">Colleges</span>
+        </div>
+        <div class="type-btn" data-type="universities" onclick="selectType(this)">
+          <span class="t-icon">&#127979;</span>
+          <span class="t-label">Universities</span>
+        </div>
+        <div class="type-btn" data-type="coaching" onclick="selectType(this)">
+          <span class="t-icon">&#128218;</span>
+          <span class="t-label">Coaching</span>
+        </div>
+        <div class="type-btn" data-type="polytechnic" onclick="selectType(this)">
+          <span class="t-icon">&#128293;</span>
+          <span class="t-label">Polytechnic</span>
+        </div>
+      </div>
+
+      <!-- Coaching Sub-types -->
+      <div class="subtype-wrap" id="coaching-subtypes">
+        <div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px;font-weight:600;">COACHING CATEGORY</div>
+        <div class="subtype-chip active" data-sub="" onclick="selectSubtype(this)">All Coaching</div>
+        <div class="subtype-chip" data-sub="JEE IIT" onclick="selectSubtype(this)">&#9889; JEE / IIT</div>
+        <div class="subtype-chip" data-sub="NEET medical" onclick="selectSubtype(this)">&#9877; NEET / Medical</div>
+        <div class="subtype-chip" data-sub="IAS UPSC civil services" onclick="selectSubtype(this)">&#127979; IAS / UPSC</div>
+        <div class="subtype-chip" data-sub="CAT MBA management" onclick="selectSubtype(this)">&#128202; CAT / MBA</div>
+        <div class="subtype-chip" data-sub="SSC banking government" onclick="selectSubtype(this)">&#127970; SSC / Banking</div>
+        <div class="subtype-chip" data-sub="NDA defence armed forces" onclick="selectSubtype(this)">&#128116; NDA / Defence</div>
+        <div class="subtype-chip" data-sub="CUET class 12" onclick="selectSubtype(this)">&#128221; CUET / Board</div>
+        <div class="subtype-chip" data-sub="CLAT law" onclick="selectSubtype(this)">&#9878; CLAT / Law</div>
+      </div>
+
+      <!-- School Board Sub-types -->
+      <div class="subtype-wrap" id="school-subtypes">
+        <div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px;font-weight:600;">BOARD TYPE</div>
+        <div class="subtype-chip active" data-sub="" onclick="selectSubtype(this)">All Boards</div>
+        <div class="subtype-chip" data-sub="CBSE" onclick="selectSubtype(this)">CBSE</div>
+        <div class="subtype-chip" data-sub="ICSE" onclick="selectSubtype(this)">ICSE</div>
+        <div class="subtype-chip" data-sub="State Board" onclick="selectSubtype(this)">State Board</div>
+        <div class="subtype-chip" data-sub="IB international" onclick="selectSubtype(this)">IB / International</div>
+        <div class="subtype-chip" data-sub="Montessori primary" onclick="selectSubtype(this)">Primary / Montessori</div>
+      </div>
+
+      <!-- College Type Sub-types -->
+      <div class="subtype-wrap" id="college-subtypes">
+        <div style="font-size:0.7rem;color:var(--muted);margin-bottom:4px;font-weight:600;">COLLEGE TYPE</div>
+        <div class="subtype-chip active" data-sub="" onclick="selectSubtype(this)">All Colleges</div>
+        <div class="subtype-chip" data-sub="engineering B.Tech" onclick="selectSubtype(this)">Engineering / B.Tech</div>
+        <div class="subtype-chip" data-sub="medical MBBS" onclick="selectSubtype(this)">Medical / MBBS</div>
+        <div class="subtype-chip" data-sub="arts science commerce" onclick="selectSubtype(this)">Arts / Science / Commerce</div>
+        <div class="subtype-chip" data-sub="BBA MBA management" onclick="selectSubtype(this)">Management / MBA</div>
+        <div class="subtype-chip" data-sub="B.Ed teacher training" onclick="selectSubtype(this)">B.Ed / Teacher Training</div>
+        <div class="subtype-chip" data-sub="pharmacy B.Pharm" onclick="selectSubtype(this)">Pharmacy</div>
+        <div class="subtype-chip" data-sub="law LLB" onclick="selectSubtype(this)">Law / LLB</div>
+        <div class="subtype-chip" data-sub="design architecture" onclick="selectSubtype(this)">Design / Architecture</div>
+      </div>
+    </div>
+
+    <!-- LOCATION FILTERS -->
+    <div class="filter-section">
+      <div class="filter-label">&#128205; Location</div>
+
+      <select class="filter-input" id="state-filter" onchange="updateQueryPreview()">
+        <option value="">All States / UTs</option>
+        <optgroup label="─── Popular ───">
+          <option value="Delhi">Delhi (NCT)</option>
+          <option value="Mumbai Maharashtra">Mumbai, Maharashtra</option>
+          <option value="Bangalore Karnataka">Bangalore, Karnataka</option>
+          <option value="Chennai Tamil Nadu">Chennai, Tamil Nadu</option>
+          <option value="Hyderabad Telangana">Hyderabad, Telangana</option>
+          <option value="Kolkata West Bengal">Kolkata, West Bengal</option>
+          <option value="Pune Maharashtra">Pune, Maharashtra</option>
+          <option value="Ahmedabad Gujarat">Ahmedabad, Gujarat</option>
+        </optgroup>
+        <optgroup label="─── All States ───">
+          <option value="Andhra Pradesh">Andhra Pradesh</option>
+          <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+          <option value="Assam">Assam</option>
+          <option value="Bihar">Bihar</option>
+          <option value="Chhattisgarh">Chhattisgarh</option>
+          <option value="Goa">Goa</option>
+          <option value="Gujarat">Gujarat</option>
+          <option value="Haryana">Haryana</option>
+          <option value="Himachal Pradesh">Himachal Pradesh</option>
+          <option value="Jharkhand">Jharkhand</option>
+          <option value="Karnataka">Karnataka</option>
+          <option value="Kerala">Kerala</option>
+          <option value="Madhya Pradesh">Madhya Pradesh</option>
+          <option value="Maharashtra">Maharashtra</option>
+          <option value="Manipur">Manipur</option>
+          <option value="Meghalaya">Meghalaya</option>
+          <option value="Mizoram">Mizoram</option>
+          <option value="Nagaland">Nagaland</option>
+          <option value="Odisha">Odisha</option>
+          <option value="Punjab">Punjab</option>
+          <option value="Rajasthan">Rajasthan</option>
+          <option value="Sikkim">Sikkim</option>
+          <option value="Tamil Nadu">Tamil Nadu</option>
+          <option value="Telangana">Telangana</option>
+          <option value="Tripura">Tripura</option>
+          <option value="Uttar Pradesh">Uttar Pradesh</option>
+          <option value="Uttarakhand">Uttarakhand</option>
+          <option value="West Bengal">West Bengal</option>
+        </optgroup>
+        <optgroup label="─── Union Territories ───">
+          <option value="Andaman and Nicobar">Andaman &amp; Nicobar</option>
+          <option value="Chandigarh">Chandigarh</option>
+          <option value="Dadra and Nagar Haveli">Dadra &amp; Nagar Haveli</option>
+          <option value="Daman and Diu">Daman &amp; Diu</option>
+          <option value="Delhi">Delhi (NCT)</option>
+          <option value="Jammu and Kashmir">Jammu &amp; Kashmir</option>
+          <option value="Ladakh">Ladakh</option>
+          <option value="Lakshadweep">Lakshadweep</option>
+          <option value="Puducherry">Puducherry</option>
+        </optgroup>
+      </select>
+
+      <input type="text" class="filter-input" id="city-filter"
+        placeholder="City (e.g. Bhubaneswar, Kota...)"
+        oninput="updateQueryPreview()" />
+
+      <input type="text" class="filter-input" id="pincode-filter"
+        placeholder="Pincode (e.g. 110001)"
+        maxlength="6" pattern="[0-9]*"
+        oninput="this.value=this.value.replace(/\D/g,''); updateQueryPreview()" />
+    </div>
+
+    <!-- QUERY PREVIEW -->
+    <div class="filter-section">
+      <div class="filter-label">&#128270; Search Query Preview</div>
+      <div class="query-preview-label">Will search Google for:</div>
+      <div class="query-preview" id="query-preview">schools colleges coaching institutes in India</div>
+    </div>
+
+    <!-- Results count -->
+    <div class="filter-section">
+      <div class="filter-label">&#128202; Number of Results</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="range" id="num-results" min="5" max="50" value="20"
+          style="flex:1;-webkit-appearance:none;height:5px;background:var(--surface2);border-radius:3px;outline:none;cursor:pointer;"
+          oninput="document.getElementById('num-value').textContent=this.value;updateQueryPreview()" />
+        <span id="num-value" style="color:var(--primary);font-weight:700;font-size:0.9rem;min-width:22px;">20</span>
+      </div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:4px;">websites to scrape</div>
+    </div>
+
+    <button class="btn-clear-filters" onclick="clearFilters()">&#10006; Clear All Filters</button>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       MAIN CONTENT
+  ════════════════════════════════════════════════════════════════ -->
+  <div class="main-content">
+
+    <!-- Search bar -->
+    <div class="search-bar-wrap">
+      <div class="search-input-wrap">
+        <span class="search-icon">&#9998;</span>
+        <input id="query-input" type="text"
+          placeholder="Optional: add extra keywords (e.g. top, affordable, near metro...)"
+          autocomplete="off" spellcheck="false"
+          oninput="updateQueryPreview()" />
+      </div>
+      <button class="btn-scrape" id="btn-scrape" onclick="startScrape()">
+        <span id="btn-icon">&#9889;</span>
+        <span id="btn-text">Start Scraping</span>
+      </button>
+    </div>
+
+    <!-- Quick suggestions -->
+    <div class="quick-sugg">
+      <span class="sugg-label">Quick:</span>
+      <span class="pill" onclick="applySugg('coaching','JEE IIT','Delhi')">JEE Delhi</span>
+      <span class="pill" onclick="applySugg('coaching','NEET medical','Hyderabad Telangana')">NEET Hyd</span>
+      <span class="pill" onclick="applySugg('colleges','engineering B.Tech','Mumbai Maharashtra')">Engg Mumbai</span>
+      <span class="pill" onclick="applySugg('schools','CBSE','Bangalore Karnataka')">CBSE Blr</span>
+      <span class="pill" onclick="applySugg('coaching','IAS UPSC civil services','Delhi')">IAS Delhi</span>
+      <span class="pill" onclick="applySugg('colleges','','Odisha')">Colleges Odisha</span>
+      <span class="pill" onclick="applySugg('coaching','CAT MBA management','Pune Maharashtra')">MBA Pune</span>
+      <span class="pill" onclick="applySugg('schools','','Ahmedabad Gujarat')">Schools Ahmedabad</span>
+    </div>
+
+    <!-- Error -->
+    <div id="error-banner"></div>
+
+    <!-- Progress -->
+    <div id="progress-panel">
+      <div class="prog-top">
+        <span class="prog-title">&#128202; Scraping in Progress</span>
+        <span class="phase-badge" id="phase-badge">Searching</span>
+      </div>
+      <div class="prog-bar-bg">
+        <div class="prog-bar" id="progress-bar"></div>
+      </div>
+      <div class="prog-meta">
+        <span id="progress-text">0 / 0 websites</span>
+        <span id="progress-pct">0%</span>
+      </div>
+      <div id="status-msg">
+        <div class="spinner" id="spinner"></div>
+        <span id="status-text">Launching browser...</span>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results-panel">
+      <div class="results-hdr">
+        <div>
+          <div class="results-title">&#128203; Scraped Results</div>
+          <div class="results-count" id="results-count">0 institutions found</div>
+        </div>
+        <button class="btn-download" id="btn-download" disabled onclick="downloadExcel()">
+          &#128229; Download Excel
+        </button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-num" id="stat-total">0</div>
+          <div class="stat-label">Total Found</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-email">0</div>
+          <div class="stat-label">With Email</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-phone">0</div>
+          <div class="stat-label">With Phone</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-both">0</div>
+          <div class="stat-label">Email + Phone</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Institution Name</th>
+              <th>Type</th>
+              <th>Website</th>
+              <th>Email Address(es)</th>
+              <th>Phone Number(s)</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody">
+            <tr><td colspan="6">
+              <div class="empty-state">
+                <div class="empty-icon">&#128269;</div>
+                <div>Set filters and click Start Scraping</div>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /app-wrap -->
+
+<script>
+  /* ── State ───────────────────────────────────────────────────────── */
+  let selectedType    = '';
+  let selectedSubtype = '';
+  let currentJobId    = null;
+  let eventSource     = null;
+  let rowCount        = 0;
+  let statsT          = { email: 0, phone: 0, both: 0 };
+  let currentTypeLabel = 'All Types';
+
+  /* ── Quick Suggestions ───────────────────────────────────────────── */
+  function applySugg(type, sub, state) {
+    // Set type button
+    document.querySelectorAll('.type-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.type === type);
+    });
+    selectedType = type;
+    showSubtypes(type);
+
+    // Set subtype
+    const subWrap = document.getElementById(type + '-subtypes');
+    if (subWrap) {
+      subWrap.querySelectorAll('.subtype-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.sub === sub);
+      });
+    }
+    selectedSubtype = sub;
+
+    // Set state
+    const sel = document.getElementById('state-filter');
+    for (let i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === state) { sel.selectedIndex = i; break; }
+    }
+
+    document.getElementById('query-input').value = '';
+    document.getElementById('city-filter').value  = '';
+    document.getElementById('pincode-filter').value = '';
+    updateQueryPreview();
+    updateTypeLabel();
+  }
+
+  /* ── Type Selection ───────────────────────────────────────────────  */
+  function selectType(el) {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    selectedType = el.dataset.type;
+    selectedSubtype = '';
+    showSubtypes(selectedType);
+    updateTypeLabel();
+    updateQueryPreview();
+  }
+
+  function showSubtypes(type) {
+    ['coaching', 'school', 'college'].forEach(t => {
+      const w = document.getElementById(t + '-subtypes');
+      if (w) w.classList.remove('visible');
+    });
+
+    if (type === 'coaching') {
+      document.getElementById('coaching-subtypes').classList.add('visible');
+    } else if (type === 'schools') {
+      document.getElementById('school-subtypes').classList.add('visible');
+    } else if (type === 'colleges' || type === 'universities') {
+      document.getElementById('college-subtypes').classList.add('visible');
+    }
+
+    // Reset subtype chips
+    document.querySelectorAll('.subtype-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.sub === '');
+    });
+    selectedSubtype = '';
+  }
+
+  function updateTypeLabel() {
+    const btn = document.querySelector('.type-btn.active');
+    currentTypeLabel = btn ? btn.querySelector('.t-label').textContent : 'All Types';
+  }
+
+  /* ── Subtype Selection ───────────────────────────────────────────── */
+  function selectSubtype(el) {
+    // Get the parent wrap and deselect siblings
+    const wrap = el.closest('.subtype-wrap');
+    wrap.querySelectorAll('.subtype-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    selectedSubtype = el.dataset.sub;
+    updateQueryPreview();
+  }
+
+  /* ── Build Smart Query ───────────────────────────────────────────── */
+  function buildQuery() {
+    const custom  = document.getElementById('query-input').value.trim();
+    const state   = document.getElementById('state-filter').value.trim();
+    const city    = document.getElementById('city-filter').value.trim();
+    const pincode = document.getElementById('pincode-filter').value.trim();
+
+    let parts = [];
+
+    // Institute type + subtype
+    if (selectedSubtype) {
+      parts.push(selectedSubtype);
+    }
+    if (selectedType) {
+      if (!selectedSubtype) parts.push(selectedType);
+      else parts.push(selectedType);  // add both
+    } else {
+      if (!selectedSubtype) parts.push('schools colleges coaching institutes');
+    }
+
+    // Extra keywords
+    if (custom) parts.push(custom);
+
+    // Location — most specific first
+    let locationStr = '';
+    if (pincode) locationStr = `near pincode ${pincode}`;
+    else if (city && state) locationStr = `in ${city} ${state}`;
+    else if (city)    locationStr = `in ${city}`;
+    else if (state)   locationStr = `in ${state}`;
+    else              locationStr = 'in India';
+
+    parts.push(locationStr);
+
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function updateQueryPreview() {
+    document.getElementById('query-preview').textContent = buildQuery();
+  }
+
+  /* ── Clear Filters ───────────────────────────────────────────────── */
+  function clearFilters() {
+    selectedType = ''; selectedSubtype = '';
+    document.querySelectorAll('.type-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+    document.querySelectorAll('.subtype-chip').forEach(c => c.classList.toggle('active', c.dataset.sub===''));
+    ['coaching','school','college'].forEach(t => {
+      const w = document.getElementById(t+'-subtypes');
+      if (w) w.classList.remove('visible');
+    });
+    document.getElementById('state-filter').selectedIndex = 0;
+    document.getElementById('city-filter').value = '';
+    document.getElementById('pincode-filter').value = '';
+    document.getElementById('query-input').value = '';
+    currentTypeLabel = 'All Types';
+    updateQueryPreview();
+  }
+
+  /* ── Start Scrape ────────────────────────────────────────────────── */
+  async function startScrape() {
+    const query = buildQuery();
+    const numResults = parseInt(document.getElementById('num-results').value);
+
+    resetUI();
+    setButtonLoading(true);
+    showError('');
+    show('progress-panel');
+
+    try {
+      const res = await fetch('/api/scrape', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          num_results: numResults,
+          institute_type: currentTypeLabel
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to start');
+      currentJobId = data.job_id;
+      listenToStream(currentJobId);
+    } catch (e) {
+      showError('Failed to start: ' + e.message);
+      setButtonLoading(false);
+      hide('progress-panel');
+    }
+  }
+
+  /* ── SSE Stream ──────────────────────────────────────────────────── */
+  function listenToStream(jobId) {
+    if (eventSource) eventSource.close();
+    eventSource = new EventSource(`/api/stream/${jobId}`);
+
+    eventSource.addEventListener('connected',    () => setStatus('Connected — launching browser...'));
+    eventSource.addEventListener('status',       e => { const d=J(e); setStatus(d.message); if(d.phase==='export') setPhaseBadge('Exporting'); });
+    eventSource.addEventListener('search_done',  e => { const d=J(e); setStatus(`Found ${d.count} websites — scraping...`); setPhaseBadge('Scraping'); setProgress(0,d.count); show('results-panel'); });
+    eventSource.addEventListener('progress',     e => { const d=J(e); setProgress(d.current,d.total); setStatus(`Scraping ${d.current}/${d.total}: ${shortUrl(d.url)}`); });
+    eventSource.addEventListener('row',          e => { const d=J(e); appendRow(d); liveStats(d); });
+    eventSource.addEventListener('done',         e => {
+      const d=J(e);
+      setPhaseBadge('Done ✓');
+      setStatus('Complete! Click Download Excel.');
+      setProgress(d.total, d.total);
+      finalStats(d);
+      document.getElementById('btn-download').disabled = false;
+      setButtonLoading(false);
+      document.getElementById('spinner').style.display = 'none';
+      eventSource.close();
+    });
+    eventSource.addEventListener('error', e => {
+      try { showError(J(e).message); } catch(_) { showError('Connection error. Try again.'); }
+      setButtonLoading(false); eventSource.close();
+    });
+  }
+
+  /* ── Append Row ──────────────────────────────────────────────────── */
+  function appendRow(d) {
+    const tbody = document.getElementById('results-tbody');
+    if (rowCount === 0) tbody.innerHTML = '';
+    rowCount++;
+
+    // Type tag styling
+    const typeColors = {
+      'Schools':'#1d4ed8','Colleges':'#7c3aed','Universities':'#0891b2',
+      'Coaching':'#b45309','Polytechnic':'#065f46','All Types':'#374151'
+    };
+    const typeColor = typeColors[d.institute_type] || '#374151';
+    const typeBg    = typeColor + '33';
+
+    const emailHtml = (d.emails||[]).length
+      ? d.emails.map(e=>`<div class="c-item email">&#64;&nbsp;${esc(e)}</div>`).join('')
+      : '<span class="tag-none">—</span>';
+
+    const phoneHtml = (d.phones||[]).length
+      ? d.phones.map(p=>`<div class="c-item phone">&#128222;&nbsp;${esc(p)}</div>`).join('')
+      : '<span class="tag-none">—</span>';
+
+    const domain = (() => { try { return new URL(d.url).hostname.replace('www.',''); } catch { return d.url; } })();
+
+    const tr = document.createElement('tr');
+    tr.style.animationDelay = `${(rowCount%6)*0.04}s`;
+    tr.innerHTML = `
+      <td class="td-num">${d.index}</td>
+      <td class="td-name">${esc(d.name||'Unknown')}</td>
+      <td><span class="type-tag" style="background:${typeBg};color:${typeColor}">${esc(d.institute_type||'—')}</span></td>
+      <td class="td-url"><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(domain)}</a></td>
+      <td><div class="contact-list">${emailHtml}</div></td>
+      <td><div class="contact-list">${phoneHtml}</div></td>
+    `;
+    tbody.appendChild(tr);
+    document.getElementById('results-count').textContent = `${rowCount} institution${rowCount!==1?'s':''} found`;
+    document.getElementById('stat-total').textContent = rowCount;
+  }
+
+  function liveStats(d) {
+    if ((d.emails||[]).length) statsT.email++;
+    if ((d.phones||[]).length) statsT.phone++;
+    if ((d.emails||[]).length && (d.phones||[]).length) statsT.both++;
+    document.getElementById('stat-email').textContent = statsT.email;
+    document.getElementById('stat-phone').textContent = statsT.phone;
+    document.getElementById('stat-both').textContent  = statsT.both;
+  }
+
+  function finalStats(d) {
+    document.getElementById('stat-total').textContent = d.total;
+    document.getElementById('stat-email').textContent = d.with_email;
+    document.getElementById('stat-phone').textContent = d.with_phone;
+    document.getElementById('stat-both').textContent  = d.both;
+  }
+
+  /* ── Download ────────────────────────────────────────────────────── */
+  function downloadExcel() {
+    if (currentJobId) window.location.href = `/api/download/${currentJobId}`;
+  }
+
+  /* ── Helpers ─────────────────────────────────────────────────────── */
+  function resetUI() {
+    rowCount = 0; statsT = { email:0, phone:0, both:0 };
+    document.getElementById('results-tbody').innerHTML = `
+      <tr><td colspan="6"><div class="empty-state">
+        <div class="empty-icon">&#128269;</div>
+        <div>Results will appear here as pages are scraped...</div>
+      </div></td></tr>`;
+    document.getElementById('results-count').textContent = '0 institutions found';
+    ['stat-total','stat-email','stat-phone','stat-both'].forEach(id => document.getElementById(id).textContent='0');
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-text').textContent = '0 / 0 websites';
+    document.getElementById('progress-pct').textContent = '0%';
+    document.getElementById('btn-download').disabled = true;
+    document.getElementById('spinner').style.display = '';
+    setPhaseBadge('Searching');
+  }
+
+  function show(id) { document.getElementById(id).style.display='block'; }
+  function hide(id) { document.getElementById(id).style.display='none'; }
+
+  function setProgress(cur, tot) {
+    const pct = tot > 0 ? Math.round((cur/tot)*100) : 0;
+    document.getElementById('progress-bar').style.width  = pct + '%';
+    document.getElementById('progress-text').textContent = `${cur} / ${tot} websites`;
+    document.getElementById('progress-pct').textContent  = pct + '%';
+  }
+
+  function setStatus(msg) { document.getElementById('status-text').textContent = msg; }
+  function setPhaseBadge(t) { document.getElementById('phase-badge').textContent = t; }
+
+  function setButtonLoading(on) {
+    const btn = document.getElementById('btn-scrape');
+    btn.disabled = on;
+    document.getElementById('btn-icon').textContent = on ? '⏳' : '⚡';
+    document.getElementById('btn-text').textContent = on ? 'Scraping...' : 'Start Scraping';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-banner');
+    if (msg) { el.textContent = '⚠ ' + msg; el.style.display='block'; }
+    else el.style.display='none';
+  }
+
+  function esc(s) {
+    return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function J(e) { return JSON.parse(e.data); }
+
+  function shortUrl(url) {
+    try { const u=new URL(url); return u.hostname+(u.pathname.length>25?u.pathname.slice(0,25)+'...':u.pathname); }
+    catch { return url.slice(0,55); }
+  }
+
+  document.getElementById('query-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') startScrape();
+  });
+
+  // Init preview
+  updateQueryPreview();
+</script>
+</body>
+</html>

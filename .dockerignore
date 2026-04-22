@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+ENV/
+
+# Project specific
+outputs/*.xlsx
+*.log
+
+# Git
+.git
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
