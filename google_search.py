@@ -255,28 +255,39 @@ def _search_serper_api(query: str, num_results: int) -> list[str]:
         "X-API-KEY": api_key,
         "Content-Type": "application/json"
     }
-    payload = json.dumps({
-        "q": query,
-        "gl": "in",      # Country: India
-        "hl": "en",      # Language: English
-        "num": 100       # Fetch 100 raw results to guarantee we have enough after filtering out portals/directories
-    })
-
     try:
         console.print("[dim]⚡ Using Serper.dev API (Instant, No-Block)...[/dim]")
-        resp = _req.post("https://google.serper.dev/search", headers=headers, data=payload, timeout=10)
-        resp.raise_for_status()
         
-        data = resp.json()
-        organic_results = data.get("organic", [])
+        page = 1
+        max_pages = 5
         
-        for item in organic_results:
-            href = item.get("link", "")
-            if href.startswith("http") and _is_valid_url(href) and href not in urls:
-                urls.append(href)
-                if len(urls) >= num_results:
-                    break
-                    
+        while len(urls) < num_results and page <= max_pages:
+            payload = json.dumps({
+                "q": query,
+                "gl": "in",      # Country: India
+                "hl": "en",      # Language: English
+                "num": 100,      # Fetch max raw results per page
+                "page": page     # Pagination
+            })
+
+            resp = _req.post("https://google.serper.dev/search", headers=headers, data=payload, timeout=10)
+            resp.raise_for_status()
+            
+            data = resp.json()
+            organic_results = data.get("organic", [])
+            
+            if not organic_results:
+                break  # No more results in Google
+            
+            for item in organic_results:
+                href = item.get("link", "")
+                if href.startswith("http") and _is_valid_url(href) and href not in urls:
+                    urls.append(href)
+                    if len(urls) >= num_results:
+                        break
+                        
+            page += 1 # Move to next Google page
+
         if urls:
             console.print(f"[green]✓ Serper API found {len(urls)} valid results instantly[/green]")
         else:
