@@ -237,21 +237,83 @@ def _search_bing_playwright(query: str, num_results: int, page) -> list[str]:
     return urls
 
 
-def google_search(query: str, num_results: int = 20) -> list[str]:
+def _search_duckduckgo_requests(query: str, num_results: int) -> list[str]:
     """
-    Master search function using Playwright headless Chromium.
-    Tries Google first with multiple retries. Bing is LAST RESORT only.
+    Fast primary search using DuckDuckGo's HTML endpoint.
+    Uses plain requests — NO Playwright, NO browser.
+    Completes in 1-3 seconds. Works on EC2 without bot detection.
     """
-    from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
-
-    console.print(f"[cyan]Searching for:[/cyan] [bold]{query}[/bold]")
-    console.print("[dim]Launching headless browser...[/dim]")
+    import requests as _req
+    from bs4 import BeautifulSoup as _BS
+    from urllib.parse import unquote as _unquote, parse_qs as _parse_qs, urlparse as _urlparse
 
     urls = []
-    max_browser_retries = 2
-    google_attempts = 0
-    
-    for browser_attempt in range(max_browser_retries):
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
+        "Accept": "text/html,application/xhtml+xml,*/*;q=0.8",
+        "Accept-Language": "en-IN,en;q=0.9",
+    }
+
+    try:
+        console.print("[dim]🦆 Trying DuckDuckGo (fast, no browser)...[/dim]")
+        # DDG HTML endpoint — POST request with the search query
+        resp = _req.post(
+            "https://html.duckduckgo.com/html/",
+            data={"q": query, "kl": "in-en"},
+            headers=headers,
+            timeout=15,
+        )
+        resp.raise_for_status()
+        soup = _BS(resp.text, "lxml")
+
+        # DDG wraps result URLs in a redirect: /l/?uddg=<encoded_url>&...
+        for a in soup.select("a.result__a"):
+            href = (a.get("href") or "").strip()
+            # Decode DDG redirect wrapper
+            if "uddg=" in href:
+                qs = _parse_qs(_urlparse(href).query)
+                href = _unquote(qs.get("uddg", [""])[0])
+            if href.startswith("http") and _is_valid_url(href) and href not in urls:
+                urls.append(href)
+                if len(urls) >= num_results:
+                    break
+
+        if urls:
+            console.print(f"[green]✓ DuckDuckGo found {len(urls)} results in ~1s[/green]")
+        else:
+            console.print("[yellow]DuckDuckGo returned 0 results — may need browser fallback[/yellow]")
+
+    except Exception as e:
+        console.print(f"[yellow]DuckDuckGo search failed: {e}[/yellow]")
+
+    return urls
+
+
+def google_search(query: str, num_results: int = 20) -> list[str]:
+    """
+    Master search function.
+    Priority:
+      1. DuckDuckGo HTML (fast, no browser, ~1-3s) — PRIMARY
+      2. Google via Playwright (slow, 30-60s, may be blocked on EC2) — FALLBACK
+      3. Bing via Playwright (slow, last resort) — LAST RESORT
+    """
+    console.print(f"[cyan]Searching for:[/cyan] [bold]{query}[/bold]")
+
+    # ── 1. DuckDuckGo (fast, no browser) ─────────────────────────────────────
+    urls = _search_duckduckgo_requests(query, num_results)
+    if urls:
+        console.print(f"[green]Search complete (DDG): {len(urls)} URLs found[/green]")
+        return urls
+
+    # ── 2. Google via Playwright (browser fallback) ───────────────────────────
+    console.print("[yellow]DDG found 0 results. Falling back to Google browser search (slow)...[/yellow]")
+    from playwright.sync_api import sync_playwright
+
+    for browser_attempt in range(2):
         browser = None
         try:
             with sync_playwright() as p:
@@ -264,17 +326,16 @@ def google_search(query: str, num_results: int = 20) -> list[str]:
                             "--disable-infobars",
                             "--disable-dev-shm-usage",
                             "--disable-gpu",
-                            "--disable-dev-tools",
                         ],
-                        timeout=60000,  # Increased timeout for Render
+                        timeout=60000,
                     )
                 except Exception as e:
-                    console.print(f"[yellow]Browser launch attempt {browser_attempt + 1} failed: {e}[/yellow]")
-                    if browser_attempt < max_browser_retries - 1:
+                    console.print(f"[yellow]Browser launch failed (attempt {browser_attempt + 1}): {e}[/yellow]")
+                    if browser_attempt < 1:
                         time.sleep(3)
                         continue
-                    raise
-                
+                    break
+
                 context = browser.new_context(
                     viewport={"width": 1366, "height": 768},
                     user_agent=(
@@ -284,54 +345,47 @@ def google_search(query: str, num_results: int = 20) -> list[str]:
                     ),
                     locale="en-IN",
                     timezone_id="Asia/Kolkata",
-                    http_credentials=None,  # Don't send credentials
                 )
-                # Hide webdriver flag and other detection vectors
                 context.add_init_script("""
                     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
                     window.chrome = { runtime: {} };
                     Object.defineProperty(navigator, 'languages', {get: () => ['en-IN', 'en']});
                 """)
-
                 page = context.new_page()
 
-                # Try Google first (multiple attempts)
+                # Try Google
                 google_attempts = 0
-                max_google_attempts = 2
-                while google_attempts < max_google_attempts and not urls:
+                while google_attempts < 2 and not urls:
                     google_attempts += 1
-                    console.print(f"[dim]Attempt {google_attempts}/{max_google_attempts}: Searching Google...[/dim]")
+                    console.print(f"[dim]Google attempt {google_attempts}/2...[/dim]")
                     urls = _search_google_playwright(query, num_results, page)
                     if urls:
-                        console.print(f"[green]✓ Google search successful: Found {len(urls)} results[/green]")
+                        console.print(f"[green]✓ Google found {len(urls)} results[/green]")
                         break
-                    if google_attempts < max_google_attempts:
-                        console.print("[dim]No results from Google, retrying...[/dim]")
+                    if google_attempts < 2:
                         time.sleep(3)
 
-                # If Google completely failed (not just 0 results), try Bing as ABSOLUTE last resort
-                if not urls and google_attempts >= max_google_attempts:
-                    console.print("[yellow]⚠️  Google search exhausted. Attempting Bing as fallback...[/yellow]")
+                # ── 3. Bing (last resort) ─────────────────────────────────────
+                if not urls:
+                    console.print("[yellow]⚠️  Google blocked/failed. Trying Bing as last resort...[/yellow]")
                     urls = _search_bing_playwright(query, num_results, page)
                     if urls:
-                        console.print(f"[yellow]Bing fallback found {len(urls)} results[/yellow]")
+                        console.print(f"[yellow]Bing found {len(urls)} results[/yellow]")
 
                 browser.close()
-                break  # Success, exit retry loop
-                
+                break
+
         except Exception as e:
-            console.print(f"[red]Search attempt {browser_attempt + 1} failed: {e}[/red]")
+            console.print(f"[red]Browser search attempt {browser_attempt + 1} failed: {e}[/red]")
             if browser is not None:
                 try:
                     browser.close()
                 except Exception:
                     pass
-            if browser_attempt < max_browser_retries - 1:
-                console.print("[dim]Retrying entire search session...[/dim]")
+            if browser_attempt < 1:
                 time.sleep(3)
 
-    console.print(f"[green]Search complete: Found {len(urls)} valid URLs to scrape[/green]")
+    console.print(f"[green]Search complete: {len(urls)} URLs found[/green]")
     if not urls:
-        console.print("[red]✗ WARNING: No URLs found from any search engine - search may have been blocked[/red]")
-    
+        console.print("[red]✗ WARNING: No URLs found from any search engine[/red]")
     return urls
