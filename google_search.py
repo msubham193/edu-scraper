@@ -259,7 +259,7 @@ def _search_serper_api(query: str, num_results: int) -> list[str]:
         "q": query,
         "gl": "in",      # Country: India
         "hl": "en",      # Language: English
-        "num": max(20, num_results) # Fetch enough to filter
+        "num": 100       # Fetch 100 raw results to guarantee we have enough after filtering out portals/directories
     })
 
     try:
