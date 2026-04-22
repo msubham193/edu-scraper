@@ -149,10 +149,19 @@ def extract_name(soup: BeautifulSoup, url: str) -> str:
 def extract_all(html: str, url: str) -> dict:
     """
     Master extraction function.
-    Returns dict with: name, emails, phones
+    Returns dict with: name, emails, phones, url.
+    Returns a flagged empty result if the page is a search engine page.
     """
     soup = BeautifulSoup(html, "lxml")
     text = soup.get_text(separator=" ", strip=True)
+
+    # Guard: skip if we accidentally scraped a search engine page
+    page_title = (soup.find("title") or {}).get_text().strip().lower() if soup.find("title") else ""
+    from urllib.parse import urlparse as _urlparse
+    _domain = _urlparse(url).netloc.lower().replace("www.", "")
+    _search_engines = ["bing.com", "google.com", "yahoo.com", "microsoft.com"]
+    if any(se in _domain for se in _search_engines):
+        return {"name": "", "emails": [], "phones": [], "url": url, "_skip": True}
 
     name = extract_name(soup, url)
 

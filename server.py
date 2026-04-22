@@ -131,6 +131,11 @@ def run_scrape_job(job_id: str, query: str, num_results: int, institute_type: st
 
             result = extract_all(html, url)
 
+            # Skip if the extractor flagged this as a search engine page
+            if result.get("_skip"):
+                push("log", {"level": "warn", "message": f"Skipped search engine page: {url}"})
+                continue
+
             # Try contact sub-pages
             base = f"{urlparse(url).scheme}://{urlparse(url).netloc}"
             for path in CONTACT_PATHS:

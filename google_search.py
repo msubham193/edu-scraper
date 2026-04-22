@@ -13,17 +13,26 @@ from rich.console import Console
 
 console = Console()
 
-# Domains to skip (social media, maps, aggregators, portals)
+# Domains to skip (social media, maps, aggregators, portals, and search engines)
 SKIP_DOMAINS = {
+    # Search engines — must never appear as results
+    "google.com", "bing.com", "microsoft.com", "msn.com", "yahoo.com",
+    "duckduckgo.com", "baidu.com", "yandex.com", "ask.com",
+    # Social / messaging
     "facebook.com", "twitter.com", "instagram.com", "linkedin.com",
-    "youtube.com", "maps.google.com", "google.com", "wikipedia.org",
-    "justdial.com", "indiamart.com", "sulekha.com", "quora.com",
-    "reddit.com", "yelp.com", "tripadvisor.com", "glassdoor.com",
-    "shiksha.com", "collegedunia.com", "careers360.com",
-    "practo.com", "amazon.com", "flipkart.com", "snapdeal.com",
-    "naukri.com", "indeed.com", "paytm.com", "askiitians.com",
+    "youtube.com", "t.me", "wa.me", "whatsapp.com", "pinterest.com",
+    # Maps / travel
+    "maps.google.com", "tripadvisor.com",
+    # Reference / Q&A
+    "wikipedia.org", "quora.com", "reddit.com",
+    # Indian aggregators / directories
+    "justdial.com", "indiamart.com", "sulekha.com", "glassdoor.com",
+    "shiksha.com", "collegedunia.com", "careers360.com", "askiitians.com",
+    "naukri.com", "indeed.com", "yelp.com",
+    # Ecommerce / payments
+    "practo.com", "amazon.com", "flipkart.com", "snapdeal.com", "paytm.com",
+    # EdTech platforms (not institutes themselves)
     "toppr.com", "byjus.com", "vedantu.com", "unacademy.com",
-    "t.me", "wa.me", "whatsapp.com",
 }
 
 
@@ -36,6 +45,11 @@ def _is_valid_url(url: str) -> bool:
             return False
         if not domain or "." not in domain:
             return False
+        # Reject search-engine internal links (e.g. bing.com/search, google.com/search)
+        search_paths = ["/search", "/Search", "/images", "/maps", "/news", "/video", "/shopping"]
+        for sp in search_paths:
+            if parsed.path.startswith(sp):
+                return False
         for skip in SKIP_DOMAINS:
             if skip in domain:
                 return False
@@ -158,19 +172,47 @@ def _search_bing_playwright(query: str, num_results: int, page) -> list[str]:
     """Search Bing as fallback using a Playwright page object."""
     urls = []
     try:
-        page.goto(f"https://www.bing.com/search?q={query}&count=50", 
-                  wait_until="domcontentloaded", timeout=30000)
-        time.sleep(random.uniform(1.5, 2.5))
+        from urllib.parse import quote_plus
+        page.goto(
+            f"https://www.bing.com/search?q={quote_plus(query)}&count=50&setlang=en-IN",
+            wait_until="domcontentloaded",
+            timeout=30000,
+        )
+        time.sleep(random.uniform(2.0, 3.5))
 
         pages_scraped = 0
         while len(urls) < num_results and pages_scraped < 5:
-            # Bing result links are in <li class="b_algo"> -> <h2> -> <a>
-            anchors = page.locator("li.b_algo h2 a").all()
+            # Try multiple robust selectors for Bing results
+            selectors = [
+                "li.b_algo h2 a",           # Classic Bing layout
+                "li.b_algo .b_title a",     # Alternative layout
+                "#b_results li.b_algo a",   # Broader fallback
+            ]
+            anchors = []
+            for sel in selectors:
+                anchors = page.locator(sel).all()
+                if len(anchors) > 2:
+                    break
+
+            if not anchors:
+                console.print("[yellow]Bing: No result anchors found — possible layout change[/yellow]")
+                break
+
+            console.print(f"[dim]Bing: found {len(anchors)} candidate links[/dim]")
+
             for a in anchors:
                 try:
-                    href = a.get_attribute("href") or ""
-                    if href.startswith("http") and _is_valid_url(href) and href not in urls:
+                    href = (a.get_attribute("href") or "").strip()
+                    if not href.startswith("http"):
+                        continue
+                    # Hard-reject any Bing / Microsoft / search-engine URL
+                    parsed_href = urlparse(href)
+                    raw_domain = parsed_href.netloc.lower().replace("www.", "")
+                    if any(se in raw_domain for se in ["bing.com", "microsoft.com", "msn.com", "google.com"]):
+                        continue
+                    if _is_valid_url(href) and href not in urls:
                         urls.append(href)
+                        console.print(f"[dim]  ✓ Bing result: {href[:80]}[/dim]")
                         if len(urls) >= num_results:
                             break
                 except Exception:
@@ -184,7 +226,7 @@ def _search_bing_playwright(query: str, num_results: int, page) -> list[str]:
             if next_btn.count() > 0:
                 next_btn.first.click()
                 page.wait_for_load_state("domcontentloaded", timeout=10000)
-                time.sleep(random.uniform(1.5, 2.5))
+                time.sleep(random.uniform(2.0, 3.5))
                 pages_scraped += 1
             else:
                 break
