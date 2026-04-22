@@ -50,7 +50,7 @@ def _search_google_playwright(query: str, num_results: int, page) -> list[str]:
     try:
         # Navigate to Google with increased timeout
         page.goto("https://www.google.com", wait_until="domcontentloaded", timeout=45000)
-        time.sleep(random.uniform(1.5, 2.5))
+        time.sleep(random.uniform(2, 3))
 
         # Accept cookies if prompted (common in India)
         try:
@@ -68,12 +68,12 @@ def _search_google_playwright(query: str, num_results: int, page) -> list[str]:
                 search_box = page.locator("textarea[name='q'], input[name='q']")
                 if search_box.count() > 0:
                     search_box.first.click()
-                    time.sleep(0.5)
-                    search_box.first.fill(query)
+                    time.sleep(random.uniform(0.5, 1.5))
+                    search_box.first.type(query, delay=50)  # Slower typing = more human-like
                     time.sleep(0.5)
                     search_box.first.press("Enter")
                     page.wait_for_load_state("domcontentloaded", timeout=20000)
-                    time.sleep(random.uniform(2.5, 4))
+                    time.sleep(random.uniform(3, 5))
                     break
                 else:
                     search_attempts += 1
@@ -86,23 +86,50 @@ def _search_google_playwright(query: str, num_results: int, page) -> list[str]:
         if search_attempts >= 3:
             console.print(f"[yellow]Failed to search Google after 3 attempts[/yellow]")
             return urls
+        
+        # Check for captcha/block page
+        try:
+            title = page.title()
+            if "captcha" in title.lower() or "unusual traffic" in page.content().lower():
+                console.print("[red]⚠️  Google detected unusual traffic (possible bot detection)[/red]")
+                return urls
+        except Exception:
+            pass
 
         pages_scraped = 0
         while len(urls) < num_results and pages_scraped < 5:
             try:
-                # Extract all result links - Google result links: <a> tags inside <div class="yuRUbf"> or similar
-                anchors = page.locator("div#search a[href]").all()
+                # Try multiple selectors for Google result links (HTML structure varies)
+                # Google wraps result links as /url?q=<actual_url>
+                anchors = page.locator("a[href*='/url?q=']").all()
+                
+                if not anchors or len(anchors) < 3:
+                    # Fallback to alternative selectors
+                    anchors = page.locator("div#search div.g a[href^='http']").all()
+                
+                if not anchors or len(anchors) < 3:
+                    # Last resort: look for any links in search results
+                    anchors = page.locator("div#search a:not([aria-label='Search by voice']):not([aria-label='Search'])").all()
+                
                 if not anchors:
-                    console.print(f"[dim]No anchors found on page[/dim]")
+                    console.print(f"[yellow]No Google results found on page - this may indicate bot detection[/yellow]")
+                    break
                     
+                console.print(f"[dim]Found {len(anchors)} potential result links[/dim]")
+                
                 for a in anchors:
                     try:
                         href = a.get_attribute("href") or ""
+                        
+                        # Unwrap Google's /url?q= wrapper if present
+                        if "/url?q=" in href:
+                            href = href.split("/url?q=")[1].split("&")[0]
+                        
                         if href.startswith("http") and _is_valid_url(href) and href not in urls:
                             urls.append(href)
                             if len(urls) >= num_results:
                                 break
-                    except Exception:
+                    except Exception as e:
                         continue
 
                 if len(urls) >= num_results:
@@ -171,7 +198,7 @@ def _search_bing_playwright(query: str, num_results: int, page) -> list[str]:
 def google_search(query: str, num_results: int = 20) -> list[str]:
     """
     Master search function using Playwright headless Chromium.
-    Tries Google first with multiple retries, then Bing as fallback.
+    Tries Google first with multiple retries. Bing is LAST RESORT only.
     """
     from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
@@ -180,6 +207,7 @@ def google_search(query: str, num_results: int = 20) -> list[str]:
 
     urls = []
     max_browser_retries = 2
+    google_attempts = 0
     
     for browser_attempt in range(max_browser_retries):
         browser = None
@@ -214,23 +242,37 @@ def google_search(query: str, num_results: int = 20) -> list[str]:
                     ),
                     locale="en-IN",
                     timezone_id="Asia/Kolkata",
+                    http_credentials=None,  # Don't send credentials
                 )
-                # Hide webdriver flag
+                # Hide webdriver flag and other detection vectors
                 context.add_init_script("""
                     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
                     window.chrome = { runtime: {} };
+                    Object.defineProperty(navigator, 'languages', {get: () => ['en-IN', 'en']});
                 """)
 
                 page = context.new_page()
 
-                # Try Google first (with internal retries)
-                console.print("[dim]Strategy 1: Google Search (Primary)...[/dim]")
-                urls = _search_google_playwright(query, num_results, page)
+                # Try Google first (multiple attempts)
+                google_attempts = 0
+                max_google_attempts = 2
+                while google_attempts < max_google_attempts and not urls:
+                    google_attempts += 1
+                    console.print(f"[dim]Attempt {google_attempts}/{max_google_attempts}: Searching Google...[/dim]")
+                    urls = _search_google_playwright(query, num_results, page)
+                    if urls:
+                        console.print(f"[green]✓ Google search successful: Found {len(urls)} results[/green]")
+                        break
+                    if google_attempts < max_google_attempts:
+                        console.print("[dim]No results from Google, retrying...[/dim]")
+                        time.sleep(3)
 
-                # Only use Bing as fallback if Google completely failed
-                if not urls:
-                    console.print("[yellow]Google search returned no results, trying Bing as fallback...[/yellow]")
+                # If Google completely failed (not just 0 results), try Bing as ABSOLUTE last resort
+                if not urls and google_attempts >= max_google_attempts:
+                    console.print("[yellow]⚠️  Google search exhausted. Attempting Bing as fallback...[/yellow]")
                     urls = _search_bing_playwright(query, num_results, page)
+                    if urls:
+                        console.print(f"[yellow]Bing fallback found {len(urls)} results[/yellow]")
 
                 browser.close()
                 break  # Success, exit retry loop
@@ -243,13 +285,11 @@ def google_search(query: str, num_results: int = 20) -> list[str]:
                 except Exception:
                     pass
             if browser_attempt < max_browser_retries - 1:
+                console.print("[dim]Retrying entire search session...[/dim]")
                 time.sleep(3)
-            else:
-                console.print("[red]All search attempts failed[/red]")
-                raise
 
-    console.print(f"[green]Found {len(urls)} valid URLs to scrape[/green]")
+    console.print(f"[green]Search complete: Found {len(urls)} valid URLs to scrape[/green]")
     if not urls:
-        console.print("[red]WARNING: No URLs found - search may have failed[/red]")
+        console.print("[red]✗ WARNING: No URLs found from any search engine - search may have been blocked[/red]")
     
     return urls
