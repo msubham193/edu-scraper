@@ -23,6 +23,13 @@ if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
+# Detect deployment environment
+IS_RENDER = os.environ.get("RENDER") == "true"
+IS_CLOUD = IS_RENDER or "heroku" in os.environ or "RAILWAY" in os.environ
+
+if IS_CLOUD:
+    print(f"[!] Running on cloud platform: RENDER={IS_RENDER}")
+
 from pathlib import Path
 from datetime import datetime
 from flask import Flask, request, jsonify, Response, send_file, send_from_directory
@@ -56,13 +63,23 @@ def run_scrape_job(job_id: str, query: str, num_results: int, institute_type: st
     try:
         job["status"] = "searching"
         push("status", {"message": f"Searching Google for: {query}", "phase": "search"})
+        
+        if IS_CLOUD:
+            push("log", {"level": "info", "message": f"Running on cloud platform, search may take longer"})
 
         # ── Step 1: Search ────────────────────────────────────────────────────
         from google_search import google_search
-        urls = google_search(query, num_results=num_results)
+        try:
+            urls = google_search(query, num_results=num_results)
+        except Exception as e:
+            push("error", {"message": f"Search failed: {str(e)[:200]}"})
+            push("log", {"level": "error", "message": f"Full error: {str(e)}"})
+            job["status"] = "error"
+            q.put(None)  # sentinel
+            return
 
         if not urls:
-            push("error", {"message": "No URLs found. Try a different query."})
+            push("error", {"message": "No URLs found. Try a different query. Check logs for details."})
             job["status"] = "error"
             q.put(None)  # sentinel
             return
@@ -263,8 +280,20 @@ def job_status(job_id: str):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    print("\n" + "="*55)
+    
+    # Environment info
+    print("\n" + "="*60)
     print("  Education Institute Scraper - Web UI")
-    print(f"  Starting server on port: {port}")
-    print("="*55 + "\n")
+    print("="*60)
+    print(f"  Port: {port}")
+    print(f"  Platform: {'RENDER' if IS_RENDER else 'Local/Other'}")
+    print(f"  Python: {sys.version.split()[0]}")
+    print(f"  Working Dir: {os.getcwd()}")
+    print("="*60 + "\n")
+    
+    # Startup message
+    if IS_CLOUD:
+        print("⚠️  Running on cloud platform - searches may take 30-45 seconds")
+        print("   This is normal. Google search needs time to load in container.\n")
+    
     app.run(host="0.0.0.0", port=port, debug=False, threaded=True)

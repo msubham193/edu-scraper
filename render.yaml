@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: edu-scraper
+    runtime: docker
+    region: oregon  # Change to your preferred region
+    plan: standard  # Use at least standard plan
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD
+        value: "1"
+    dockerfilePath: ./Dockerfile
