@@ -11,6 +11,7 @@ ENV/
 outputs/
 *.xlsx
 *.log
+.env
 
 # OS
 .DS_Store

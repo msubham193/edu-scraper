@@ -17,6 +17,12 @@ import time
 import threading
 import queue
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Force UTF-8
 if sys.platform == "win32":
     import io

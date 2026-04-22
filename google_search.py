@@ -6,6 +6,7 @@ This behaves like a real browser — bypasses all anti-bot blocks.
 Falls back to Bing if Google fails.
 """
 
+import os
 import time
 import random
 from urllib.parse import urlparse
@@ -237,6 +238,56 @@ def _search_bing_playwright(query: str, num_results: int, page) -> list[str]:
     return urls
 
 
+def _search_serper_api(query: str, num_results: int) -> list[str]:
+    """
+    Lightning-fast robust search using Serper.dev API.
+    Bypasses all Google Captchas and IP blocks on AWS EC2.
+    """
+    import requests as _req
+    import json
+    
+    api_key = os.environ.get("SERPER_API_KEY")
+    if not api_key:
+        return []
+
+    urls = []
+    headers = {
+        "X-API-KEY": api_key,
+        "Content-Type": "application/json"
+    }
+    payload = json.dumps({
+        "q": query,
+        "gl": "in",      # Country: India
+        "hl": "en",      # Language: English
+        "num": max(20, num_results) # Fetch enough to filter
+    })
+
+    try:
+        console.print("[dim]⚡ Using Serper.dev API (Instant, No-Block)...[/dim]")
+        resp = _req.post("https://google.serper.dev/search", headers=headers, data=payload, timeout=10)
+        resp.raise_for_status()
+        
+        data = resp.json()
+        organic_results = data.get("organic", [])
+        
+        for item in organic_results:
+            href = item.get("link", "")
+            if href.startswith("http") and _is_valid_url(href) and href not in urls:
+                urls.append(href)
+                if len(urls) >= num_results:
+                    break
+                    
+        if urls:
+            console.print(f"[green]✓ Serper API found {len(urls)} valid results instantly[/green]")
+        else:
+            console.print("[yellow]Serper API returned 0 valid institute URLs.[/yellow]")
+            
+    except Exception as e:
+        console.print(f"[red]Serper API Error: {e}[/red]")
+        
+    return urls
+
+
 def _search_duckduckgo_requests(query: str, num_results: int) -> list[str]:
     """
     Fast primary search using DuckDuckGo's HTML endpoint.
@@ -297,11 +348,20 @@ def google_search(query: str, num_results: int = 20) -> list[str]:
     """
     Master search function.
     Priority:
-      1. DuckDuckGo HTML (fast, no browser, ~1-3s) — PRIMARY
-      2. Google via Playwright (slow, 30-60s, may be blocked on EC2) — FALLBACK
+      0. Serper.dev API (Ultra-fast, bulletproof) — HIGH PRIORITY (If KEY exists)
+      1. DuckDuckGo HTML (fast, no browser, ~1-3s) — FALLBACK 1
+      2. Google via Playwright (slow, 30-60s, may be blocked on EC2) — FALLBACK 2
       3. Bing via Playwright (slow, last resort) — LAST RESORT
     """
     console.print(f"[cyan]Searching for:[/cyan] [bold]{query}[/bold]")
+
+    # ── 0. Serper API (If Key is Loaded) ─────────────────────────────────────
+    if os.environ.get("SERPER_API_KEY"):
+        urls = _search_serper_api(query, num_results)
+        if urls:
+            console.print(f"[green]Search complete (Serper): {len(urls)} URLs found[/green]")
+            return urls
+        console.print("[yellow]Serper API failed or returned 0 results. Falling back...[/yellow]")
 
     # ── 1. DuckDuckGo (fast, no browser) ─────────────────────────────────────
     urls = _search_duckduckgo_requests(query, num_results)
